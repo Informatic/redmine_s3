@@ -1,7 +1,7 @@
 # S3 plugin for Redmine
 
 ## Description
-This plugin for Redmine allows to store all file in s3 (Wasabi, Amazon etc.). This is a fork for [original gem](http://github.com/tigrish/redmine_s3).
+This plugin for Redmine allows to store all file in s3 (Wasabi, Amazon etc.). This is a fork from [original gem](http://github.com/tigrish/redmine_s3).
 This plugin has been adjusted and now is compatible with Redmine 4.1.1
 
 ## Installation
@@ -10,7 +10,7 @@ This plugin has been adjusted and now is compatible with Redmine 4.1.1
 3. Inside the Plugin directory run: `cp redmine_s3_wasabi/config/s3.yml.example ../config/s3.yml`
 4. Edit config/s3.yml Add endpoint for your s3 and all other settings (see s3 Options Details)
 5. `bundle install`
-6. Restart your Ruby webserver or the machine
+6. Restart your Ruby web server or the machine
 
 ## s3 Options Details
 * access_key_id: string key (required)
