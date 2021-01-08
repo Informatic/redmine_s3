@@ -30,5 +30,7 @@ This plugin has been adjusted and now is compatible with Redmine 4.1.1
 
 ## License
 Copyrights (c) 2012 Christopher Dell
+
 Copyrights (c) 2020 0x2c4
+
 This plugin is released under the [MIT License](http://www.opensource.org/licenses/MIT).
