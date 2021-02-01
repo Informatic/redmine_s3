@@ -1,6 +1,4 @@
-require 'aws-sdk'
-
-AWS.config(:ssl_verify_peer => false)
+require 'aws-sdk-s3'
 
 module RedmineS3
   class Connection
@@ -17,27 +15,35 @@ module RedmineS3
       :expires           => nil,
       :secure            => false,
       :proxy             => false,
-      :thumb_folder      => 'tmp'
+      :thumb_folder      => 'tmp',
+      :region            => 'test',
+      :force_path_style  => true,
     }
 
     class << self
       def load_options
-        file = ERB.new( File.read(File.join(Rails.root, 'config', 's3.yml')) ).result
-        YAML::load( file )[Rails.env].each do |key, value|
-          @@s3_options[key.to_sym] = value
-        end
+        @@s3_options.each_key { |key|
+          env_key = "REDMINE_S3_#{key.upcase}"
+          if ENV.has_key?(env_key) then
+            if @@s3_options[key].in? [true, false] then
+              @@s3_options[key] = ENV.fetch(env_key).in? ['true', '1']
+            else
+              @@s3_options[key] = ENV.fetch(env_key)
+            end
+          end
+        }
       end
 
       def establish_connection
         load_options unless @@s3_options[:access_key_id] && @@s3_options[:secret_access_key]
         options = {
+          :region => @@s3_options[:region],
           :access_key_id => @@s3_options[:access_key_id],
-          :secret_access_key => @@s3_options[:secret_access_key]
+          :secret_access_key => @@s3_options[:secret_access_key],
+          :force_path_style => @@s3_options[:force_path_style],
         }
-        options[:s3_endpoint] = self.endpoint unless self.endpoint.nil?
-        options[:s3_port] = self.port unless self.port.nil?
-        options[:use_ssl] = self.ssl unless self.ssl.nil?
-        @conn = AWS::S3.new(options)
+        options[:endpoint] = self.endpoint unless self.endpoint.nil?
+        @conn = client = Aws::S3::Resource.new(options)
       end
 
       def conn
@@ -50,8 +56,8 @@ module RedmineS3
       end
 
       def create_bucket
-        bucket = self.conn.buckets[self.bucket]
-        self.conn.buckets.create(self.bucket) unless bucket.exists?
+        bucket = self.conn.bucket(self.bucket)
+        bucket.create unless bucket.exists?
       end
 
       def folder
@@ -101,17 +107,18 @@ module RedmineS3
       end
 
       def object(filename, target_folder = self.folder)
-        bucket = self.conn.buckets[self.bucket]
-        bucket.objects[target_folder + filename]
+        bucket = self.conn.bucket(self.bucket)
+        bucket.object(target_folder + filename)
       end
 
       def put(disk_filename, original_filename, data, content_type='application/octet-stream', target_folder = self.folder)
         object = self.object(disk_filename, target_folder)
         options = {}
-        options[:acl] = :public_read unless self.private?
+        options[:body] = data
+        options[:acl] = "public-read" unless self.private?
         options[:content_type] = content_type if content_type
         options[:content_disposition] = "inline; filename=#{ERB::Util.url_encode(original_filename)}"
-        object.write(data, options)
+        object.put(options)
       end
 
       def delete(filename, target_folder = self.folder)
@@ -124,7 +131,7 @@ module RedmineS3
         if self.private?
           options = {:secure => self.secure?}
           options[:expires] = self.expires unless self.expires.nil?
-          object.url_for(:read, options).to_s
+          object.presigned_url(:get, options).to_s
         else
           object.public_url(:secure => self.secure?).to_s
         end
@@ -132,7 +139,7 @@ module RedmineS3
 
       def get(filename, target_folder = self.folder)
         object = self.object(filename, target_folder)
-        object.read
+        object.get().body
       end
     end
   end
